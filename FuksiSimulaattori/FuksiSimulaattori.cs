@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Text;
 using System.Collections.Generic;
 using Jypeli;
 using Jypeli.Assets;
@@ -10,68 +11,51 @@ public class FuksiSimulaattori : PhysicsGame
     private PlatformCharacter fuksi;
     private BoundingRectangle spawnAlue;
     private IntMeter pisteLaskuri;
-    private Timer ajastin;
+    private Timer esteAjastin;
     private DoubleMeter humalataso;
     private List<PhysicsObject> esteet = new List<PhysicsObject>();
 
     public override void Begin()
     {
+        AloitusValikko();
+    }
 
+
+    /// <summary>
+    /// Tyhjentaa kentan ja aloittaa uuden pelin.
+    /// </summary>
+    public void AloitaPeli()
+    {
+        ClearAll();
         Gravity = new Vector(0.0, -800.0);
-        AloitaPeli();
+        LuoKentta();
+        LuoPistelaskuri();
+        LuoHumalaPalkki();
+        esteAjastin = new Timer();
+        esteAjastin.Interval = 1.5;
+        esteAjastin.Timeout += LuoEste;
+        esteAjastin.Start();
+        for (int i = 0; i < 3; i++)
+        {
+            LuoJuoma(this, spawnAlue);
+        }
         AsetaOhjaimet();
         AddCollisionHandler<PlatformCharacter, PhysicsObject>(fuksi, "juoma", TormasiJuomaan);
         AddCollisionHandler<PlatformCharacter, PhysicsObject>(fuksi, "este", TormasiEsteeseen);
     }
 
-    /// <summary>
-    /// Aloittaa pelin asettamalla pelinTilan trueksi ja aloittamalla esteiden spawnauksen.
-    /// </summary>
-    public void AloitaPeli()
-    {
-        LuoKentta();
-        LuoPistelaskuri();
-        LuoHumalaPalkki();
-        for (int i = 0; i < 3; i++)
-        {
-            LuoJuoma(this, spawnAlue);
-        }
-        ajastin = new Timer();
-        ajastin.Interval = 1.5;
-        ajastin.Timeout += LuoEste;
-        ajastin.Start();
-    }
-
 
     /// <summary>
-    /// Poistaa pelista juoman ja lisaa pisteen laskuriin.
+    /// Asettaa peliin ohjaimet pelihahmon liikuttamiseksi.
     /// </summary>
-    /// <param name="hahmo">Pelaaja.</param>
-    /// <param name="juoma">Juoma.</param>
-    public void TormasiJuomaan(PlatformCharacter hahmo, PhysicsObject juoma)
+    public void AsetaOhjaimet()
     {
-        juoma.IgnoresCollisionResponse = true;
-        juoma.Destroy();
-        LuoJuoma(this, spawnAlue);
-        pisteLaskuri.Value += 1;
-        humalataso.Value += 1;
-    }
-
-
-    /// <summary>
-    /// Lopettaa pelin pelaajan tormatessa esteeseen.
-    /// </summary>
-    /// <param name="hahmo">Pelaaja.</param>
-    /// <param name="este">Este.</param>
-    public void TormasiEsteeseen(PlatformCharacter hahmo, PhysicsObject este)
-    {
-        hahmo.Destroy();
-        este.Stop();
-        ajastin.Stop();
-        for (int i = 0; i < esteet.Count; i++)
-        {
-            esteet[i].Stop();
-        }
+        Keyboard.Listen(Key.Up, ButtonState.Pressed, HahmoHyppaa, "Hahmo hyppaa", fuksi, 1500.0);
+        Keyboard.Listen(Key.Left, ButtonState.Pressed, HahmoKavelee, "Hahmo liikkuu vasemmalle", fuksi, -800.0);
+        Keyboard.Listen(Key.Right, ButtonState.Pressed, HahmoKavelee, "Hahmo liikkuu oikealle", fuksi, 800.0);
+        Keyboard.Listen(Key.Escape, ButtonState.Pressed, ConfirmExit, "Lopeta peli");
+        Keyboard.Listen(Key.K, ButtonState.Pressed, Katkaisuhoito, "Katkaisuhoito");
+        Keyboard.Listen(Key.P, ButtonState.Pressed, PauseMenu, "Pysayttaa pelin");
     }
 
 
@@ -94,15 +78,142 @@ public class FuksiSimulaattori : PhysicsGame
 
 
     /// <summary>
-    /// Asettaa peliin ohjaimet pelihahmon liikuttamiseksi.
+    /// Luo pistelaskurin oikeaan ylakulmaan.
     /// </summary>
-    public void AsetaOhjaimet()
+    public void LuoPistelaskuri()
     {
-        Keyboard.Listen(Key.Up, ButtonState.Pressed, HahmoHyppaa, "Hahmo hyppaa", fuksi, 1500.0);
-        Keyboard.Listen(Key.Left, ButtonState.Pressed, HahmoKavelee, "Hahmo liikkuu vasemmalle", fuksi, -800.0);
-        Keyboard.Listen(Key.Right, ButtonState.Pressed, HahmoKavelee, "Hahmo liikkuu oikealle", fuksi, 800.0);
-        Keyboard.Listen(Key.Escape, ButtonState.Pressed, ConfirmExit, "Lopeta peli");
-        Keyboard.Listen(Key.K, ButtonState.Pressed, Katkaisuhoito, "Katkaisuhoito");
+        pisteLaskuri = new IntMeter(0);
+        Label pisteNaytto = new Label();
+        pisteNaytto.X = Screen.Right - 100;
+        pisteNaytto.Y = Screen.Top - 100;
+        pisteNaytto.TextColor = Color.Black;
+        pisteNaytto.Color = Color.White;
+        pisteNaytto.IntFormatString = "Pisteita: {0:D2}";
+        pisteNaytto.BindTo(pisteLaskuri);
+        Add(pisteNaytto);
+    }
+    
+
+    /// <summary>
+    /// Luo humalapalkin, joka sidotaan nayttamaan humalamittarin tila.
+    /// </summary>
+    public void LuoHumalaPalkki()
+    {
+        humalataso = new DoubleMeter(0);
+        humalataso.MaxValue = 20.0;
+        ProgressBar humalaPalkki = new ProgressBar(150, 10);
+        humalaPalkki.BindTo(humalataso);
+        humalaPalkki.X = Screen.Left + 150;
+        humalaPalkki.Y = Screen.Top - 20;
+        humalaPalkki.BarColor = Color.Red;
+        humalaPalkki.BorderColor = Color.Black;
+        Add(humalaPalkki);
+    }
+
+
+    /// <summary>
+    /// Lopettaa pelin, tulostaa syyn havioon, ja avaa monivalintaikkunan.
+    /// </summary>
+    /// <param name="syy">Syy.</param>
+    public void PeliPaattyi(string syy)
+    {
+        fuksi.Stop();
+        esteAjastin.Stop();
+        for (int i = 0; i < esteet.Count; i++)
+        {
+            esteet[i].Stop();
+        }
+        StringBuilder viesti = new StringBuilder(syy + "\nTuloksesi: ");
+        viesti.Append(pisteLaskuri.Value);
+        MultiSelectWindow valikko = new MultiSelectWindow(viesti.ToString(),
+                                                          "Aloita alusta",
+                                                          "Lopeta");
+        valikko.ItemSelected += ValikonNappi;
+        Add(valikko);
+    }
+
+
+    /// <summary>
+    /// Nayttaa pelin alussa aloitusvalikon.
+    /// </summary>
+    public void AloitusValikko()
+    {
+        MultiSelectWindow valikko = new MultiSelectWindow("Tervetuloa FuksiSimulaattoriin!",
+                                                          "Aloita peli",
+                                                          "Lopeta");
+        valikko.ItemSelected += ValikonNappi;
+        Add(valikko);
+    }
+
+
+    /// <summary>
+    /// Aliohjelma valikkojen suorittamiselle.
+    /// </summary>
+    /// <param name="valinta">Valinta.</param>
+    public void ValikonNappi(int valinta)
+    {
+        switch (valinta)
+        {
+            case 0:
+                AloitaPeli();
+                break;
+            case 1:
+                Exit();
+                break;
+        }
+    }
+
+
+    /// <summary>
+    /// Pysayttaa pelin, ja nayttaa monivalintaikkunan.
+    /// </summary>
+    public void PauseMenu()
+    {
+        IsPaused = true;
+        MultiSelectWindow valikko = new MultiSelectWindow("Pause", "Jatka", "Aloita alusta");
+        valikko.ItemSelected += PauseValitse;
+        Add(valikko);
+        // Nestataan PauseValitse, ettei tarvitse luoda uutta julkista aliohjelmaa.
+        void PauseValitse(int valinta)
+        {
+            switch (valinta)
+            {
+                case 0:
+                    IsPaused = false;
+                    Remove(valikko);
+                    break;
+                case 1:
+                    AloitaPeli();
+                    break;
+            }
+        }
+    }
+
+
+    /// <summary>
+    /// Poistaa pelista juoman ja lisaa pisteen laskuriin.
+    /// </summary>
+    /// <param name="hahmo">Pelaaja.</param>
+    /// <param name="juoma">Juoma.</param>
+    public void TormasiJuomaan(PlatformCharacter hahmo, PhysicsObject juoma)
+    {
+        juoma.IgnoresCollisionResponse = true;
+        juoma.Destroy();
+        LuoJuoma(this, spawnAlue);
+        pisteLaskuri.Value += 1;
+        humalataso.Value += 1;
+        if (humalataso.Value > 2) PeliPaattyi("Joit itsesi hengilta!");
+    }
+
+
+    /// <summary>
+    /// Lopettaa pelin pelaajan tormatessa esteeseen.
+    /// </summary>
+    /// <param name="hahmo">Pelaaja.</param>
+    /// <param name="este">Este.</param>
+    public void TormasiEsteeseen(PlatformCharacter hahmo, PhysicsObject este)
+    {
+        PeliPaattyi("Opinnot jyrasivat sinut alleensa!");
     }
 
 
@@ -133,10 +244,10 @@ public class FuksiSimulaattori : PhysicsGame
     /// </summary>
     public void Katkaisuhoito()
     {
-        if (pisteLaskuri.Value > 10)
+        if (pisteLaskuri.Value > 3)
         {
             humalataso.Value = 0;
-            pisteLaskuri.Value -= 5;
+            pisteLaskuri.Value -= 2;
         }
     }
 
@@ -159,42 +270,6 @@ public class FuksiSimulaattori : PhysicsGame
 
 
     /// <summary>
-    /// Luo pistelaskurin oikeaan ylakulmaan.
-    /// </summary>
-    public void LuoPistelaskuri()
-    {
-        pisteLaskuri = new IntMeter(0);
-
-        Label pisteNaytto = new Label();
-        pisteNaytto.X = Screen.Right - 100;
-        pisteNaytto.Y = Screen.Top - 100;
-        pisteNaytto.TextColor = Color.Black;
-        pisteNaytto.Color = Color.White;
-        pisteNaytto.IntFormatString = "Pisteita: {0:D2}";
-
-        pisteNaytto.BindTo(pisteLaskuri);
-        Add(pisteNaytto);
-    }
-
-
-    /// <summary>
-    /// Luo humalapalkin, joka sidotaan nayttamaan humalamittarin tila.
-    /// </summary>
-    public void LuoHumalaPalkki()
-    {
-        humalataso = new DoubleMeter(0);
-        humalataso.MaxValue = 20.0;
-        ProgressBar humalaPalkki = new ProgressBar(150, 10);
-        humalaPalkki.BindTo(humalataso);
-        humalaPalkki.X = Screen.Left + 150;
-        humalaPalkki.Y = Screen.Top - 20;
-        humalaPalkki.BarColor = Color.Red;
-        humalaPalkki.BorderColor = Color.Black;
-        Add(humalaPalkki);
-    }
-
-
-    /// <summary>
     /// Luo peliin esteen. Poistaa samalla pelista naytolla nakymattomat esteet.
     /// </summary>
     public void LuoEste()
@@ -205,7 +280,7 @@ public class FuksiSimulaattori : PhysicsGame
         este.Color = Color.Brown;
         este.X = Level.Right;
         este.Y = Level.Bottom;
-        este.Velocity = new Vector(-275.0, 0);
+        este.Velocity = new Vector(-250.0, 0);
         este.Tag = "este";
         esteet.Add(este);
         this.Add(este);
