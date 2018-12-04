@@ -7,42 +7,71 @@ using Jypeli.Widgets;
 
 public class FuksiSimulaattori : PhysicsGame
 {
-    PlatformCharacter fuksi;
-    BoundingRectangle spawnAlue;
-    IntMeter pisteLaskuri;
-
+    private PlatformCharacter fuksi;
+    private BoundingRectangle spawnAlue;
+    private IntMeter pisteLaskuri;
+    private Timer ajastin;
+    private DoubleMeter humalataso;
+    private List<PhysicsObject> esteet = new List<PhysicsObject>();
 
     public override void Begin()
     {
 
         Gravity = new Vector(0.0, -800.0);
+        AloitaPeli();
+        AsetaOhjaimet();
+        AddCollisionHandler<PlatformCharacter, PhysicsObject>(fuksi, "juoma", TormasiJuomaan);
+        AddCollisionHandler<PlatformCharacter, PhysicsObject>(fuksi, "este", TormasiEsteeseen);
+    }
 
+    /// <summary>
+    /// Aloittaa pelin asettamalla pelinTilan trueksi ja aloittamalla esteiden spawnauksen.
+    /// </summary>
+    public void AloitaPeli()
+    {
         LuoKentta();
         LuoPistelaskuri();
-        AsetaOhjaimet();
-        LuoEste(this);
-
-        AddCollisionHandler<PlatformCharacter, PhysicsObject>(fuksi, "juoma", PelaajaTormasi);
-        AddCollisionHandler<PlatformCharacter, PhysicsObject>(fuksi, "este", CollisionHandler.DestroyObject);
-
+        LuoHumalaPalkki();
         for (int i = 0; i < 3; i++)
         {
             LuoJuoma(this, spawnAlue);
         }
+        ajastin = new Timer();
+        ajastin.Interval = 1.5;
+        ajastin.Timeout += LuoEste;
+        ajastin.Start();
     }
 
 
     /// <summary>
-    /// Aliohjelma, joka toteutuu pelihahmon tormatessa juomaan.
+    /// Poistaa pelista juoman ja lisaa pisteen laskuriin.
     /// </summary>
     /// <param name="hahmo">Pelaaja.</param>
     /// <param name="juoma">Juoma.</param>
-    void PelaajaTormasi(PlatformCharacter hahmo, PhysicsObject juoma)
+    public void TormasiJuomaan(PlatformCharacter hahmo, PhysicsObject juoma)
     {
         juoma.IgnoresCollisionResponse = true;
         juoma.Destroy();
         LuoJuoma(this, spawnAlue);
         pisteLaskuri.Value += 1;
+        humalataso.Value += 1;
+    }
+
+
+    /// <summary>
+    /// Lopettaa pelin pelaajan tormatessa esteeseen.
+    /// </summary>
+    /// <param name="hahmo">Pelaaja.</param>
+    /// <param name="este">Este.</param>
+    public void TormasiEsteeseen(PlatformCharacter hahmo, PhysicsObject este)
+    {
+        hahmo.Destroy();
+        este.Stop();
+        ajastin.Stop();
+        for (int i = 0; i < esteet.Count; i++)
+        {
+            esteet[i].Stop();
+        }
     }
 
 
@@ -50,14 +79,14 @@ public class FuksiSimulaattori : PhysicsGame
     /// Luo kentan ja lisaa sinne pelihahmon.
     /// Maarittaa samalla spawnAlueen sijainnin ja koon.
     /// </summary>
-    void LuoKentta()
+    public void LuoKentta()
     {
         Level.CreateBorders();
         Camera.ZoomToLevel();
-        
         spawnAlue = new BoundingRectangle(0.0, 0.0 - Level.Height / 4.0, Level.Width, Level.Height / 2.1);
-
         fuksi = new PlatformCharacter(40.0, 80.0);
+        fuksi.X = Screen.Left + 80.0;
+        fuksi.Y = Screen.Bottom + 10.0;
         fuksi.Shape = Shape.Rectangle;
         fuksi.Color = Color.Black;
         Add(fuksi);
@@ -67,12 +96,13 @@ public class FuksiSimulaattori : PhysicsGame
     /// <summary>
     /// Asettaa peliin ohjaimet pelihahmon liikuttamiseksi.
     /// </summary>
-    void AsetaOhjaimet()
+    public void AsetaOhjaimet()
     {
         Keyboard.Listen(Key.Up, ButtonState.Pressed, HahmoHyppaa, "Hahmo hyppaa", fuksi, 1500.0);
-        Keyboard.Listen(Key.Left, ButtonState.Pressed, HahmoKavelee, "Hahmo hyppaa", fuksi, -800.0);
-        Keyboard.Listen(Key.Right, ButtonState.Pressed, HahmoKavelee, "Hahmo hyppaa", fuksi, 800.0);
+        Keyboard.Listen(Key.Left, ButtonState.Pressed, HahmoKavelee, "Hahmo liikkuu vasemmalle", fuksi, -800.0);
+        Keyboard.Listen(Key.Right, ButtonState.Pressed, HahmoKavelee, "Hahmo liikkuu oikealle", fuksi, 800.0);
         Keyboard.Listen(Key.Escape, ButtonState.Pressed, ConfirmExit, "Lopeta peli");
+        Keyboard.Listen(Key.K, ButtonState.Pressed, Katkaisuhoito, "Katkaisuhoito");
     }
 
 
@@ -86,6 +116,7 @@ public class FuksiSimulaattori : PhysicsGame
         hahmo.Jump(impulssi);
     }
 
+
     /// <summary>
     /// Pelihahmo liikkuu annettuun suuntaan.
     /// </summary>
@@ -96,6 +127,18 @@ public class FuksiSimulaattori : PhysicsGame
         hahmo.Walk(vaakaNopeus);
     }
 
+
+    /// <summary>
+    /// Nollaa humalamittarin, ja vahentaa 5 pistetta.
+    /// </summary>
+    public void Katkaisuhoito()
+    {
+        if (pisteLaskuri.Value > 10)
+        {
+            humalataso.Value = 0;
+            pisteLaskuri.Value -= 5;
+        }
+    }
 
 
     /// <summary>
@@ -118,7 +161,7 @@ public class FuksiSimulaattori : PhysicsGame
     /// <summary>
     /// Luo pistelaskurin oikeaan ylakulmaan.
     /// </summary>
-    void LuoPistelaskuri()
+    public void LuoPistelaskuri()
     {
         pisteLaskuri = new IntMeter(0);
 
@@ -127,7 +170,6 @@ public class FuksiSimulaattori : PhysicsGame
         pisteNaytto.Y = Screen.Top - 100;
         pisteNaytto.TextColor = Color.Black;
         pisteNaytto.Color = Color.White;
-        //pisteNaytto.Title = "Pisteet:";
         pisteNaytto.IntFormatString = "Pisteita: {0:D2}";
 
         pisteNaytto.BindTo(pisteLaskuri);
@@ -135,14 +177,44 @@ public class FuksiSimulaattori : PhysicsGame
     }
 
 
-    public static void LuoEste(PhysicsGame peli, string tunniste = "este")
+    /// <summary>
+    /// Luo humalapalkin, joka sidotaan nayttamaan humalamittarin tila.
+    /// </summary>
+    public void LuoHumalaPalkki()
     {
-        PhysicsObject este = PhysicsObject.CreateStaticObject(30.0, 100.0);
+        humalataso = new DoubleMeter(0);
+        humalataso.MaxValue = 20.0;
+        ProgressBar humalaPalkki = new ProgressBar(150, 10);
+        humalaPalkki.BindTo(humalataso);
+        humalaPalkki.X = Screen.Left + 150;
+        humalaPalkki.Y = Screen.Top - 20;
+        humalaPalkki.BarColor = Color.Red;
+        humalaPalkki.BorderColor = Color.Black;
+        Add(humalaPalkki);
+    }
+
+
+    /// <summary>
+    /// Luo peliin esteen. Poistaa samalla pelista naytolla nakymattomat esteet.
+    /// </summary>
+    public void LuoEste()
+    {
+        int korkeus = RandomGen.NextInt(100, 300);
+        PhysicsObject este = PhysicsObject.CreateStaticObject(30.0, korkeus);
         este.Shape = Shape.Rectangle;
-        este.Color = Color.Black;
-        este.X = Screen.Right;
-        este.Y = Screen.Bottom + 50.0;
-        este.Velocity = new Vector(-300.0, 0);
-        peli.Add(este);
+        este.Color = Color.Brown;
+        este.X = Level.Right;
+        este.Y = Level.Bottom;
+        este.Velocity = new Vector(-275.0, 0);
+        este.Tag = "este";
+        esteet.Add(este);
+        this.Add(este);
+        if (esteet.Count > 3)
+        {
+            for (int i = 0; i < esteet.Count; i++)
+            {
+                if (esteet[i].X <= Level.Left) esteet[i].Destroy();
+            }
+        }
     }
 }
