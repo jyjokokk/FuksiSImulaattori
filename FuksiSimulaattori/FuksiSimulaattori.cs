@@ -14,6 +14,8 @@ public class FuksiSimulaattori : PhysicsGame
     private Timer esteAjastin;
     private DoubleMeter humalataso;
     private List<PhysicsObject> esteet = new List<PhysicsObject>();
+    private double hyppyKorkeus = 1500.0;
+    private double liikeNopeus = 800.0;
 
     public override void Begin()
     {
@@ -27,7 +29,7 @@ public class FuksiSimulaattori : PhysicsGame
     public void AloitaPeli()
     {
         ClearAll();
-        Gravity = new Vector(0.0, -800.0);
+        Gravity = new Vector(0.0, -1000.0);
         LuoKentta();
         LuoPistelaskuri();
         LuoHumalaPalkki();
@@ -50,9 +52,9 @@ public class FuksiSimulaattori : PhysicsGame
     /// </summary>
     public void AsetaOhjaimet()
     {
-        Keyboard.Listen(Key.Up, ButtonState.Pressed, HahmoHyppaa, "Hahmo hyppaa", fuksi, 1500.0);
-        Keyboard.Listen(Key.Left, ButtonState.Pressed, HahmoKavelee, "Hahmo liikkuu vasemmalle", fuksi, -800.0);
-        Keyboard.Listen(Key.Right, ButtonState.Pressed, HahmoKavelee, "Hahmo liikkuu oikealle", fuksi, 800.0);
+        Keyboard.Listen(Key.Up, ButtonState.Pressed, HahmoHyppaa, "Hahmo hyppaa", fuksi);
+        Keyboard.Listen(Key.Left, ButtonState.Pressed, HahmoVasemalle, "Hahmo liikkuu vasemmalle", fuksi);
+        Keyboard.Listen(Key.Right, ButtonState.Pressed, HahmoOikealle, "Hahmo liikkuu oikealle", fuksi);
         Keyboard.Listen(Key.Escape, ButtonState.Pressed, ConfirmExit, "Lopeta peli");
         Keyboard.Listen(Key.K, ButtonState.Pressed, Katkaisuhoito, "Katkaisuhoito");
         Keyboard.Listen(Key.P, ButtonState.Pressed, PauseMenu, "Pysayttaa pelin");
@@ -67,7 +69,9 @@ public class FuksiSimulaattori : PhysicsGame
     {
         Level.CreateBorders();
         Camera.ZoomToLevel();
-        spawnAlue = new BoundingRectangle(0.0, 0.0 - Level.Height / 4.0, Level.Width, Level.Height / 2.1);
+        Vector ylakulma = new Vector(Screen.Left + 80.0, Screen.Top - Screen.Height / 1.8);
+        Vector alakulma = new Vector(Screen.Right - Screen.Width / 3, Screen.Bottom + 80.0);
+        spawnAlue = new BoundingRectangle(ylakulma, alakulma);
         fuksi = new PlatformCharacter(40.0, 80.0);
         fuksi.X = Screen.Left + 80.0;
         fuksi.Y = Screen.Bottom + 10.0;
@@ -100,11 +104,11 @@ public class FuksiSimulaattori : PhysicsGame
     public void LuoHumalaPalkki()
     {
         humalataso = new DoubleMeter(0);
-        humalataso.MaxValue = 20.0;
-        ProgressBar humalaPalkki = new ProgressBar(150, 10);
+        humalataso.MaxValue = 2.0;
+        ProgressBar humalaPalkki = new ProgressBar(200, 30);
         humalaPalkki.BindTo(humalataso);
-        humalaPalkki.X = Screen.Left + 150;
-        humalaPalkki.Y = Screen.Top - 20;
+        humalaPalkki.X = Screen.Left + 170;
+        humalaPalkki.Y = Screen.Top - 40;
         humalaPalkki.BarColor = Color.Red;
         humalaPalkki.BorderColor = Color.Black;
         Add(humalaPalkki);
@@ -201,8 +205,31 @@ public class FuksiSimulaattori : PhysicsGame
         juoma.Destroy();
         LuoJuoma(this, spawnAlue);
         pisteLaskuri.Value += 1;
-        humalataso.Value += 1;
-        if (humalataso.Value > 2) PeliPaattyi("Joit itsesi hengilta!");
+        humalataso.Value += 0.2;
+        hyppyKorkeus = HumalaKerroin(hyppyKorkeus, humalataso);
+        liikeNopeus = HumalaKerroin(liikeNopeus, humalataso);
+        if (humalataso.Value >= 1.25) PeliPaattyi("Joit itsesi hengilta!");
+        if (humalataso.Value >= 0.875)
+        {
+            Label viesti = new Label(Level.Width / 3, 80.0, "Varo! Juoppuhulluus lahestyy!");
+            viesti.Color = Color.White;
+            viesti.LifetimeLeft = TimeSpan.FromSeconds(3.0);
+            Add(viesti);
+        }
+    }
+
+
+    /// <summary>
+    /// Palauttaa humalakertoimen avulla kerrotun arvon. Arvo voi kasvaa,
+    /// pienentya, tai pysya ennallaan.
+    /// </summary>
+    /// <returns>Muutettu arvo.</returns>
+    /// <param name="arvo">Arvo jota muututaan.</param>
+    public static double HumalaKerroin(double arvo, DoubleMeter taso)
+    {
+        int mitenMuuttuu = RandomGen.NextInt(-1, 1);
+        double muutettuArvo = arvo + taso.Value * mitenMuuttuu * arvo;
+        return muutettuArvo;
     }
 
 
@@ -222,9 +249,9 @@ public class FuksiSimulaattori : PhysicsGame
     /// </summary>
     /// <param name="hahmo">Pelihahmo.</param>
     /// <param name="impulssi">Impulssi.</param>
-    public static void HahmoHyppaa(PlatformCharacter hahmo, double impulssi)
+    public void HahmoHyppaa(PlatformCharacter hahmo)
     {
-        hahmo.Jump(impulssi);
+        hahmo.Jump(hyppyKorkeus);
     }
 
 
@@ -232,10 +259,19 @@ public class FuksiSimulaattori : PhysicsGame
     /// Pelihahmo liikkuu annettuun suuntaan.
     /// </summary>
     /// <param name="hahmo">Pelihahmo.</param>
-    /// <param name="vaakaNopeus">Nopeus ja suunta, mihin hahmo liikkuu.</param>
-    public static void HahmoKavelee(PlatformCharacter hahmo, double vaakaNopeus)
+    public void HahmoOikealle(PlatformCharacter hahmo)
     {
-        hahmo.Walk(vaakaNopeus);
+        hahmo.Walk(liikeNopeus);
+    }
+
+
+    /// <summary>
+    /// Pelihahmo liikkuu annettuun suuntaan.
+    /// </summary>
+    /// <param name="hahmo">Pelihahmo.</param>
+    public void HahmoVasemalle(PlatformCharacter hahmo)
+    {
+        hahmo.Walk(-liikeNopeus);
     }
 
 
@@ -244,11 +280,17 @@ public class FuksiSimulaattori : PhysicsGame
     /// </summary>
     public void Katkaisuhoito()
     {
-        if (pisteLaskuri.Value > 3)
+        if (pisteLaskuri.Value > 0)
         {
             humalataso.Value = 0;
-            pisteLaskuri.Value -= 2;
+            pisteLaskuri.Value -= 1;
         }
+        hyppyKorkeus = 1500.0;
+        liikeNopeus = 800.0;
+        Label viesti = new Label(Level.Width / 4, 80.0, "Katkolle!");
+        viesti.Color = Color.White;
+        viesti.LifetimeLeft = TimeSpan.FromSeconds(3.0);
+        Add(viesti);
     }
 
 
@@ -274,16 +316,16 @@ public class FuksiSimulaattori : PhysicsGame
     /// </summary>
     public void LuoEste()
     {
-        int korkeus = RandomGen.NextInt(100, 300);
+        int korkeus = RandomGen.NextInt(100, 500);
         PhysicsObject este = PhysicsObject.CreateStaticObject(30.0, korkeus);
         este.Shape = Shape.Rectangle;
         este.Color = Color.Brown;
         este.X = Level.Right;
         este.Y = Level.Bottom;
-        este.Velocity = new Vector(-250.0, 0);
+        este.Velocity = new Vector(-200.0, 0);
         este.Tag = "este";
         esteet.Add(este);
-        this.Add(este);
+        //this.Add(este);
         if (esteet.Count > 3)
         {
             for (int i = 0; i < esteet.Count; i++)
