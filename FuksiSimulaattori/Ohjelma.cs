@@ -14,6 +14,7 @@ public static class Program
     static void Main()
     {
         using (var peli = new FuksiSimulaattori())
+
             peli.Run();
     }
 }

@@ -63,5 +63,8 @@
   <ItemGroup>
     <Folder Include="Content\" />
   </ItemGroup>
+  <ItemGroup>
+    <Content Include="Content\koff_scaled.png" />
+  </ItemGroup>
   <Import Project="$(MSBuildBinPath)\Microsoft.CSharp.targets" />
 </Project>

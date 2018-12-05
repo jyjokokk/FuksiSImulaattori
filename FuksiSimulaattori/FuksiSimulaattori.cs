@@ -300,13 +300,13 @@ public class FuksiSimulaattori : PhysicsGame
     /// <returns>juoma.</returns>
     /// <param name="peli">Peli johon juoma luodaan.</param>
     /// <param name="rect">Maaratty alue, johon juoma luodaan.</param>
-    public static void LuoJuoma(PhysicsGame peli, BoundingRectangle rect, string tunniste = "juoma")
+    public static void LuoJuoma(PhysicsGame peli, BoundingRectangle rect)
     {
         PhysicsObject juoma = PhysicsObject.CreateStaticObject(15.0, 30.0);
         juoma.Shape = Shape.Rectangle;
         juoma.Color = Color.Red;
         juoma.Position = RandomGen.NextVector(rect);
-        juoma.Tag = tunniste;
+        juoma.Tag = "juoma";
         peli.Add(juoma);
     }
 
