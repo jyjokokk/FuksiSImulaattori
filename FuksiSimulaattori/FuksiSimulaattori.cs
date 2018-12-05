@@ -325,7 +325,7 @@ public class FuksiSimulaattori : PhysicsGame
         este.Velocity = new Vector(-200.0, 0);
         este.Tag = "este";
         esteet.Add(este);
-        //this.Add(este);
+        this.Add(este);
         if (esteet.Count > 3)
         {
             for (int i = 0; i < esteet.Count; i++)
