@@ -16,6 +16,9 @@ public class FuksiSimulaattori : PhysicsGame
     private List<PhysicsObject> esteet = new List<PhysicsObject>();
     private double hyppyKorkeus = 1500.0;
     private double liikeNopeus = 800.0;
+    static readonly Image koff = LoadImage("koff_transparent");
+    static readonly Image hahmonKuva = LoadImage("hahmo_transparent");
+    static readonly Image taustaKuva = LoadImage("taustakuva");
 
     public override void Begin()
     {
@@ -67,16 +70,20 @@ public class FuksiSimulaattori : PhysicsGame
     /// </summary>
     public void LuoKentta()
     {
+        Level.Height = 768;
+        Level.Width = 1024;
         Level.CreateBorders();
+        Level.Background.Image = taustaKuva;
         Camera.ZoomToLevel();
         Vector ylakulma = new Vector(Screen.Left + 80.0, Screen.Top - Screen.Height / 1.8);
         Vector alakulma = new Vector(Screen.Right - Screen.Width / 3, Screen.Bottom + 80.0);
         spawnAlue = new BoundingRectangle(ylakulma, alakulma);
-        fuksi = new PlatformCharacter(40.0, 80.0);
+        fuksi = new PlatformCharacter(55.0, 80.0);
         fuksi.X = Screen.Left + 80.0;
         fuksi.Y = Screen.Bottom + 10.0;
         fuksi.Shape = Shape.Rectangle;
         fuksi.Color = Color.Black;
+        fuksi.Image = hahmonKuva;
         Add(fuksi);
     }
 
@@ -96,7 +103,7 @@ public class FuksiSimulaattori : PhysicsGame
         pisteNaytto.BindTo(pisteLaskuri);
         Add(pisteNaytto);
     }
-    
+
 
     /// <summary>
     /// Luo humalapalkin, joka sidotaan nayttamaan humalamittarin tila.
@@ -127,6 +134,8 @@ public class FuksiSimulaattori : PhysicsGame
         {
             esteet[i].Stop();
         }
+        hyppyKorkeus = 1500.0;
+        liikeNopeus = 800.0;
         StringBuilder viesti = new StringBuilder(syy + "\nTuloksesi: ");
         viesti.Append(pisteLaskuri.Value);
         MultiSelectWindow valikko = new MultiSelectWindow(viesti.ToString(),
@@ -300,13 +309,14 @@ public class FuksiSimulaattori : PhysicsGame
     /// <returns>juoma.</returns>
     /// <param name="peli">Peli johon juoma luodaan.</param>
     /// <param name="rect">Maaratty alue, johon juoma luodaan.</param>
-    public static void LuoJuoma(PhysicsGame peli, BoundingRectangle rect)
+    public void LuoJuoma(PhysicsGame peli, BoundingRectangle rect)
     {
         PhysicsObject juoma = PhysicsObject.CreateStaticObject(15.0, 30.0);
         juoma.Shape = Shape.Rectangle;
         juoma.Color = Color.Red;
         juoma.Position = RandomGen.NextVector(rect);
         juoma.Tag = "juoma";
+        juoma.Image = koff;
         peli.Add(juoma);
     }
 
